@@ -461,7 +461,7 @@ static void classify_signal() {
             //             fprintf(stderr, "Fixing a[0] = %d\n", min);
         }
         if (a[2] > max) {
-            a[0] = max;
+            a[2] = max;
             //             fprintf(stderr, "Fixing a[2] = %d\n", max);
         }
         //         if (a[1] == 0) {
@@ -698,14 +698,14 @@ static void pwm_p_decode(struct dm_state *demod, struct protocol_state* p, int16
             p->start_bit = 1;
             p->start_c = 1;
             p->sample_counter = 0;
-            //            fprintf(stderr, "start bit pulse start detected\n");
+            fprintf(stderr, "start bit pulse start detected\n");
         }
 
         if (!p->real_bits && p->start_bit && (buf[i] < demod->level_limit)) {
             /* end of startbit */
             p->real_bits = 1;
             p->sample_counter = 0;
-            //            fprintf(stderr, "start bit pulse end detected\n");
+            fprintf(stderr, "start bit pulse end detected\n");
         }
         if (p->start_c) p->sample_counter++;
 
@@ -713,7 +713,7 @@ static void pwm_p_decode(struct dm_state *demod, struct protocol_state* p, int16
         if (!p->pulse_start && p->real_bits && (buf[i] > demod->level_limit)) {
             /* save the pulse start, it will never be zero */
             p->pulse_start = p->sample_counter;
-            //           fprintf(stderr, "real bit pulse start detected\n");
+            fprintf(stderr, "real bit pulse start detected\n");
 
         }
 
@@ -721,29 +721,37 @@ static void pwm_p_decode(struct dm_state *demod, struct protocol_state* p, int16
             /* end of pulse */
 
             p->pulse_length = p->sample_counter - p->pulse_start;
-            //           fprintf(stderr, "real bit pulse end detected %d\n", p->pulse_length);
-            //           fprintf(stderr, "space duration %d\n", p->sample_counter);
+            fprintf(stderr, "real bit pulse end detected %d\n", p->pulse_length);
+            fprintf(stderr, "space duration %d\n", p->sample_counter);
 
             if (p->pulse_length <= p->short_limit) {
+              fprintf(stderr, "one bit\n");
                 demod_add_bit(p, 1);
-            } else if (p->pulse_length > p->short_limit) {
+            } else if (p->pulse_length <= p->long_limit) {
+              fprintf(stderr, "zero bit\n");
                 demod_add_bit(p, 0);
+            } else {
+              fprintf(stderr, "start bit\n");
+                demod_next_bits_packet(p);
+                p->start_bit = 1;
+                p->real_bits = 1;
             }
             p->sample_counter = 0;
             p->pulse_start = 0;
         }
 
-        if (p->real_bits && p->sample_counter > p->long_limit) {
-            demod_next_bits_packet(p);
+        /* if (p->real_bits && p->sample_counter > p->long_limit) { */
+        /*     demod_next_bits_packet(p); */
 
-            p->start_bit = 0;
-            p->real_bits = 0;
-        }
+        /*     p->start_bit = 0; */
+        /*     p->real_bits = 0; */
+        /* } */
 
         if (p->sample_counter > p->reset_limit) {
+          fprintf(stderr, "reset found\n");
             p->start_c = 0;
             p->sample_counter = 0;
-            //demod_print_bits_packet(p);
+            demod_print_bits_packet(p);
             if (p->callback)
                 events += p->callback(p->bits_buffer, p->bits_per_row);
             else
